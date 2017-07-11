@@ -37,8 +37,8 @@ elAddress.addEventListener('input', _.debounce(() => {
     .then(result => {
 
       if (result.error) {
-        console.log('ERROR', result.error)
-        print('😔')
+        console.error('ERROR', result.error)
+        print('Error 😔')
         return
       }
 
@@ -78,6 +78,9 @@ elAddress.addEventListener('input', _.debounce(() => {
             printProperty(result.features[0].attributes.ADDRESS, result.features[0].attributes.OWNER_NAME, zoning)
           }
         })
-        .catch(console.error)
+        .catch(err => {
+          console.error('ERROR', err)
+          print('Error 😔')
+        })
     })
 }, 300))
