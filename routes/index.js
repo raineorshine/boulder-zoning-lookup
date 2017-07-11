@@ -7,6 +7,7 @@ const xml2json = require('xml2json')
 
 const zoningLabelSelector = 'a[href^="https://www.municode.com/library/co/boulder/codes/municipal_code?nodeId="]'
 const urlZillowGetSearchResults = address => `http://www.zillow.com/webservice/GetSearchResults.htm?zws-id=${config.zillowApiKey}&address=${address}&citystatezip=Boulder%2C+CO`
+const urlZillowImage = zpid => `http://www.zillow.com/webservice/GetUpdatedPropertyDetails.htm?zws-id=${config.zillowApiKey}&zpid=` + zpid
 
 router.get('/', (req, res) => {
   res.render('index', { title: 'Boulder Zoning Lookup' })
@@ -94,7 +95,33 @@ router.get('/zillow/:address', (req, res) => {
     .then(res => res.text())
     .then(xml => {
       const json = JSON.parse(xml2json.toJson(xml))
-      res.send(json['SearchResults:searchresults'].response.results.result)
+      const response = json['SearchResults:searchresults'].response
+      if (response && response.results && response.results.result) {
+        res.send(response.results.result)
+      }
+      else {
+        res.status(404).send()
+      }
+    })
+    .catch((error) => {
+      console.error('ERROR:', error)
+      res.status(500).send()
+    })
+})
+
+router.get('/zillow-image/:zpid', (req, res) => {
+  fetch(urlZillowImage(req.params.zpid))
+    .then(res => res.text())
+    .then(xml => {
+      const json = JSON.parse(xml2json.toJson(xml))
+      const response = json['UpdatedPropertyDetails:updatedPropertyDetails'].response
+
+      if (response && response.images && response.images.image) {
+        res.send(response.images.image.url)
+      }
+      else {
+        res.status(404).send()
+      }
     })
     .catch((error) => {
       console.error('ERROR:', error)
@@ -105,6 +132,16 @@ router.get('/zillow/:address', (req, res) => {
 router.get('/proxy/:url', (req, res) => {
   const nightmare = Nightmare()
 
+  // need to run Xvfb when on distro without X display (e.g. Amazon EC2)
+  // https://github.com/segmentio/nightmare/issues/224#issuecomment-141575361
+  /*
+    apt-get update &&\
+        apt-get install -y libgtk2.0-0 libgconf-2-4 \
+        libasound2 libxtst6 libxss1 libnss3 xvfb
+
+    Xvfb -ac -screen scrn 1280x2000x24 :9.0 &
+    export DISPLAY=:9.0
+  */
   nightmare
     .goto(decodeURIComponent(req.params.url))
     // .type('#search_form_input_homepage', 'github nightmare')
