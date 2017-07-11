@@ -1,0 +1,4 @@
+{
+  "name": "boulder-zoning-lookup",
+  "script": "./bin/www"
+}
