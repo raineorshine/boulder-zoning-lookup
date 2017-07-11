@@ -5,16 +5,17 @@ elAddress.focus()
 
 const urlLookup = address => `https://maps.bouldercolorado.gov/arcgis/rest/services/pds/AddressSearch/MapServer/1/query?f=json&where=ADDRESS%20LIKE%20%27${encodeURIComponent(address).toUpperCase()}%25%27&returnGeometry=false&spatialRel=esriSpatialRelIntersects&outFields=OBJECTID%2CASR_ID%2CADDRESS%2COWNER_NAME&orderByFields=address%20ASC`
 
-const urlCrystalReport = id => 'https://secure.ci.boulder.co.us/CrystalSlim3/servlet/ViewReport?reportType=html&reportName=ParcelSummary&ParcelNo=' + id
+const urlParcelSummary = id => 'https://secure.ci.boulder.co.us/CrystalSlim3/servlet/ViewReport?reportType=html&reportName=ParcelSummary&ParcelNo=' + id
 
 const print = s => elResults.innerHTML = s || ''
 const clear = () => elResults.innerHTML = ''
 const append = s => elResults.innerHTML += '<br>' + s || ''
-const printProperty = (address, owner, zoning) => {
+const printProperty = (attr, zoning) => {
   clear()
-  append('<b>Address: </b> ' + address)
-  append('<b>Owner: </b>' + owner)
+  append('<b>Address: </b> ' + attr.ADDRESS)
+  append('<b>Owner: </b>' + attr.OWNER_NAME)
   append('<b>Zoning: </b> ' + zoning)
+  append(`<p class="smaller"><a href="${urlParcelSummary(attr.ASR_ID)}" target="_blank">Parcel Summary</a></div>`)
 }
 
 // use a fetch nonce to only show the latest fetch
@@ -60,9 +61,11 @@ elAddress.addEventListener('input', _.debounce(() => {
         return
       }
 
-      printProperty(result.features[0].attributes.ADDRESS, result.features[0].attributes.OWNER_NAME, 'Thinking... 🤔')
+      const attr = result.features[0].attributes
 
-      return fetch('/proxy/' + encodeURIComponent(urlCrystalReport(result.features[0].attributes.ASR_ID)))
+      printProperty(attr, 'Thinking... 🤔')
+
+      return fetch('/proxy/' + encodeURIComponent(urlParcelSummary(attr.ASR_ID)))
         .then(res => res.text())
         .then(text => {
           // only show the result if the nonce is current; this ensures that only the latest fetch is shown
@@ -75,7 +78,7 @@ elAddress.addEventListener('input', _.debounce(() => {
               text.match(/residential/i) ? '🏡 ' :
               ''
             ) + text
-            printProperty(result.features[0].attributes.ADDRESS, result.features[0].attributes.OWNER_NAME, zoning)
+            printProperty(attr, zoning)
           }
         })
         .catch(err => {
