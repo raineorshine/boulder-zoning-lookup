@@ -7,11 +7,30 @@ const urlLookup = address => `https://maps.bouldercolorado.gov/arcgis/rest/servi
 
 const urlCrystalReport = id => 'https://secure.ci.boulder.co.us/CrystalSlim3/servlet/ViewReport?reportType=html&reportName=ParcelSummary&ParcelNo=' + id
 
+const print = s => elResults.innerHTML = s || ''
+const clear = () => elResults.innerHTML = ''
+const append = s => elResults.innerHTML += '<br>' + s || ''
+const printProperty = (address, owner, zoning) => {
+  clear()
+  append('<b>Address: </b> ' + address)
+  append('<b>Owner: </b>' + owner)
+  append('<b>Zoning: </b> ' + zoning)
+}
+
+// use a fetch nonce to only show the latest fetch
+let nonce = 0
+
 elAddress.addEventListener('input', _.debounce(() => {
 
-  if (!elAddress.value) return
+  if (!elAddress.value) {
+    clear()
+    return
+  }
 
-  elResults.innerHTML = ''
+  // copy the nonce to a local variable so that it can be compared later on to know whether this is the latest request
+  let currentNonce = ++nonce
+
+  print('Thinking... 🤔')
   fetch(urlLookup(elAddress.value))
     .then(res => res.text())
     .then(text => JSON.parse(text))
@@ -19,7 +38,7 @@ elAddress.addEventListener('input', _.debounce(() => {
 
       if (result.error) {
         console.log('ERROR', result.error)
-        elResults.innerHTML = '😔'
+        print('😔')
         return
       }
 
@@ -37,15 +56,28 @@ elAddress.addEventListener('input', _.debounce(() => {
       // }
 
       if (!result.features.length) {
-        elResults.innerHTML = 'No matches... 😔'
+        print('No matches... 😔')
         return
       }
 
+      printProperty(result.features[0].attributes.ADDRESS, result.features[0].attributes.OWNER_NAME, 'Thinking... 🤔')
+
       return fetch('/proxy/' + encodeURIComponent(urlCrystalReport(result.features[0].attributes.ASR_ID)))
+        .then(res => res.text())
+        .then(text => {
+          // only show the result if the nonce is current; this ensures that only the latest fetch is shown
+          if (nonce === currentNonce) {
+            const zoning = (
+              text.match(/public/i) ? '🏛 ' :
+              text.match(/downtown/i) ? '🏪 ' :
+              text.match(/business/i) ? '🏦 ' :
+              text.match(/mixed/i) ? '🏘 ' :
+              text.match(/residential/i) ? '🏡 ' :
+              ''
+            ) + text
+            printProperty(result.features[0].attributes.ADDRESS, result.features[0].attributes.OWNER_NAME, zoning)
+          }
+        })
+        .catch(console.error)
     })
-    .then(res => res.text())
-    .then(text => {
-      console.log(text)
-    })
-    .catch(console.error)
 }, 300))

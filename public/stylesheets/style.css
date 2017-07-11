@@ -20,6 +20,14 @@ input {
   text-align: center;
 }
 
+.left {
+  text-align: left;
+}
+
+.block {
+  display: inline-block;
+}
+
 .vspace {
   margin-top: 20px;
 }
